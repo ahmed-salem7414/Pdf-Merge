@@ -1,0 +1,6 @@
+{
+  "name": "PDF Merger Pro - دمج ملفات PDF",
+  "description": "أداة احترافية وسريعة لدمج ملفات PDF مباشرة في متصفحك مع الحفاظ على خصوصية ملفاتك وشريط تقدم دقيق.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

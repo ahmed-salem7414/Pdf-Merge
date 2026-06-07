@@ -783,7 +783,7 @@ export default function App() {
               <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span>{isAr ? 'لا نرفع ملفاتك لخوادم خارجية' : 'Zero logs, local sandbox runtime'}</span>
+              <span>{isAr ? 'By Ahmed Salem' : 'Zero logs, local sandbox runtime'}</span>
             </div>
           </div>
           <p className="font-medium" id="footer-copyright">

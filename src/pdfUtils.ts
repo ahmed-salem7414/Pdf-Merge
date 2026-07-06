@@ -8,13 +8,16 @@ export async function getPdfPageCount(file: File): Promise<number> {
     const arrayBuffer = await file.arrayBuffer();
     // Load without full parsing to keep it fast
     const pdfDoc = await PDFDocument.load(arrayBuffer, { 
-      ignoreEncryption: true,
       updateMetadata: false,
     });
     return pdfDoc.getPageCount();
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error fetching page count:', err);
-    throw new Error('تعذر قراءة عدد الصفحات. قد يكون الملف محميًا بكلمة مرور أو تالفًا.');
+    const msg = err?.message || '';
+    if (msg.toLowerCase().includes('encrypt')) {
+      throw new Error('الملف محمي بكلمة مرور أو مشفر. لا تدعم الأداة الملفات المشفرة لتجنب الصفحات البيضاء بعد الدمج.');
+    }
+    throw new Error('تعذر قراءة عدد الصفحات. قد يكون الملف تالفًا أو مشفرًا.');
   }
 }
 
@@ -46,7 +49,18 @@ export async function mergePDFs(
     
     try {
       const fileBuffer = await file.arrayBuffer();
-      const pdf = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
+      const pdf = await PDFDocument.load(fileBuffer);
+      
+      // Flatten forms to prevent interactive widgets with broken references.
+      // This is the primary fix for merged pages showing as blank or white.
+      try {
+        const form = pdf.getForm();
+        if (form) {
+          form.flatten();
+        }
+      } catch (formErr) {
+        console.warn(`Form flattening skipped for ${file.name}:`, formErr);
+      }
       
       onProgress(
         Math.round(startPercentage + (0.5 / totalFiles) * 80),
@@ -63,6 +77,10 @@ export async function mergePDFs(
       });
     } catch (err: any) {
       console.error(`Error processing file ${file.name}:`, err);
+      const msg = err?.message || '';
+      if (msg.toLowerCase().includes('encrypt')) {
+        throw new Error(`فشل دمج الملف "${file.name}". الملف محمي بكلمة مرور أو مشفر، والأداة لا تدعم دمج الملفات المشفرة لحمايتها.`);
+      }
       throw new Error(`فشل دمج الملف "${file.name}". قد يكون الملف تالفًا أو مشفرًا.`);
     }
   }

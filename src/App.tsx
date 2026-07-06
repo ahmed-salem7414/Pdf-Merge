@@ -38,6 +38,8 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'warning' | 'error', text: string } | null>(null);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const ITEMS_PER_PAGE = 10;
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef<number>(0);
@@ -100,22 +102,40 @@ export default function App() {
       text: isAr ? `تم إضافة ${newFileEntries.length} ملف(ات) بنجاح.` : `Successfully added ${newFileEntries.length} file(s).`
     });
 
-    // Asynchronously resolve page counts to keep UX super fluent
-    for (const entry of newFileEntries) {
-      try {
-        const count = await getPdfPageCount(entry.file);
-        setFiles(prev => prev.map(item => 
-          item.id === entry.id 
-            ? { ...item, pageCount: count, loadingPageCount: false } 
-            : item
-        ));
-      } catch (err: any) {
-        setFiles(prev => prev.map(item => 
-          item.id === entry.id 
-            ? { ...item, loadingPageCount: false, error: isAr ? 'تعذر قراءة الصفحات' : 'Unreadable' } 
-            : item
-        ));
-      }
+    // Asynchronously resolve page counts in parallel batches to keep UX super fast
+    const batchSize = 10;
+    for (let i = 0; i < newFileEntries.length; i += batchSize) {
+      const batch = newFileEntries.slice(i, i + batchSize);
+      
+      const results = await Promise.all(
+        batch.map(async (entry) => {
+          try {
+            const res = await getPdfPageCount(entry.file);
+            return { id: entry.id, pageCount: res.pageCount, isEncrypted: res.isEncrypted, error: null };
+          } catch (err: any) {
+            return {
+              id: entry.id,
+              pageCount: null,
+              isEncrypted: false,
+              error: isAr ? 'تعذر قراءة الصفحات' : 'Unreadable'
+            };
+          }
+        })
+      );
+
+      setFiles(prev => prev.map(item => {
+        const res = results.find(r => r.id === item.id);
+        if (res) {
+          return {
+            ...item,
+            pageCount: res.pageCount,
+            isEncrypted: res.isEncrypted,
+            error: res.error || undefined,
+            loadingPageCount: false
+          };
+        }
+        return item;
+      }));
     }
   };
 
@@ -282,6 +302,12 @@ export default function App() {
   const totalCombinedSize = files.reduce((acc, curr) => acc + curr.size, 0);
   const totalPagesSum = files.reduce((acc, curr) => acc + (curr.pageCount || 0), 0);
   const resolvingPages = files.some(f => f.loadingPageCount);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(totalFilesCount / ITEMS_PER_PAGE) || 1;
+  const activePage = Math.min(currentPage, totalPages);
+  const startIndex = (activePage - 1) * ITEMS_PER_PAGE;
+  const paginatedFiles = files.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   return (
     <div 
@@ -549,6 +575,21 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Encryption Warning Banner */}
+                {files.some(f => f.isEncrypted) && (
+                  <div className="p-4 bg-amber-50 border border-amber-100 text-amber-800 rounded-2xl flex gap-3 shadow-sm" id="encryption-warning-banner">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold">{isAr ? 'تنبيه: ملفات مشفرة أو محمية' : 'Attention: Encrypted or Protected Files'}</h4>
+                      <p className="text-xs leading-relaxed mt-1 text-amber-700">
+                        {isAr 
+                          ? 'تم اكتشاف ملفات تحتوي على قيود حماية أو تشفير. الأداة ستتجاوز ذلك لدمجها، ولكن يرجى العلم أنها قد تظهر كصفحات بيضاء تمامًا في الملف المدمج النهائي بسبب حماية تشفير PDF المضمنة.' 
+                          : 'We detected files containing security or encryption restrictions. The tool will bypass this to merge them, but please note they may appear as blank pages in the final merged document due to internal PDF encryption.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Selected File List */}
                 <div className="flex flex-col gap-3" id="files-list-wrapper">
                   <div className="flex items-center justify-between px-1.5" id="list-header-indicator">
@@ -576,18 +617,49 @@ export default function App() {
                       </motion.div>
                     ) : (
                       <div className="space-y-3" id="files-inner-list">
-                        {files.map((file, idx) => (
-                          <FileCard
-                            key={file.id}
-                            pdfFile={file}
-                            index={idx}
-                            totalFiles={totalFilesCount}
-                            lang={lang}
-                            onMoveUp={handleMoveUp}
-                            onMoveDown={handleMoveDown}
-                            onDelete={handleDelete}
-                          />
-                        ))}
+                        <div className="space-y-3">
+                          {paginatedFiles.map((file, idx) => (
+                            <FileCard
+                              key={file.id}
+                              pdfFile={file}
+                              index={startIndex + idx}
+                              totalFiles={totalFilesCount}
+                              lang={lang}
+                              onMoveUp={handleMoveUp}
+                              onMoveDown={handleMoveDown}
+                              onDelete={handleDelete}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between border-t border-[#f1f5f9] pt-4 mt-2 px-1.5" id="pagination-controls">
+                            <button
+                              type="button"
+                              disabled={activePage === 1}
+                              onClick={() => setCurrentPage(activePage - 1)}
+                              className="px-3 py-1.5 text-xs font-bold text-[#475569] bg-[#f8fafc] border border-[#e2e8f0] rounded-xl hover:bg-white hover:text-[#2563eb] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#f8fafc] disabled:hover:text-[#475569] transition-all cursor-pointer"
+                              id="btn-pagination-prev"
+                            >
+                              {isAr ? 'السابق' : 'Previous'}
+                            </button>
+                            
+                            <span className="text-xs font-bold text-[#64748b]" id="pagination-page-indicator">
+                              {isAr ? `الصفحة ${activePage} من ${totalPages}` : `Page ${activePage} of ${totalPages}`}
+                            </span>
+                            
+                            <button
+                              type="button"
+                              disabled={activePage === totalPages}
+                              onClick={() => setCurrentPage(activePage + 1)}
+                              className="px-3 py-1.5 text-xs font-bold text-[#475569] bg-[#f8fafc] border border-[#e2e8f0] rounded-xl hover:bg-white hover:text-[#2563eb] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#f8fafc] disabled:hover:text-[#475569] transition-all cursor-pointer"
+                              id="btn-pagination-next"
+                            >
+                              {isAr ? 'التالي' : 'Next'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </AnimatePresence>

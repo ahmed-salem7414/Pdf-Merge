@@ -6,6 +6,7 @@ export interface PDFFile {
   file: File;
   error?: string;
   loadingPageCount?: boolean;
+  isEncrypted?: boolean;
 }
 
 export type MergeStatus = 'idle' | 'merging' | 'success' | 'error';

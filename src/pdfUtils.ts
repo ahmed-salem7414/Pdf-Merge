@@ -1,23 +1,23 @@
 import { PDFDocument } from 'pdf-lib';
 
 /**
- * Reads a PDF file and returns its page count.
+ * Reads a PDF file and returns its page count and encryption status.
  */
-export async function getPdfPageCount(file: File): Promise<number> {
+export async function getPdfPageCount(file: File): Promise<{ pageCount: number; isEncrypted: boolean }> {
   try {
     const arrayBuffer = await file.arrayBuffer();
     // Load without full parsing to keep it fast
     const pdfDoc = await PDFDocument.load(arrayBuffer, { 
+      ignoreEncryption: true,
       updateMetadata: false,
     });
-    return pdfDoc.getPageCount();
+    return {
+      pageCount: pdfDoc.getPageCount(),
+      isEncrypted: pdfDoc.isEncrypted,
+    };
   } catch (err: any) {
     console.error('Error fetching page count:', err);
-    const msg = err?.message || '';
-    if (msg.toLowerCase().includes('encrypt')) {
-      throw new Error('الملف محمي بكلمة مرور أو مشفر. لا تدعم الأداة الملفات المشفرة لتجنب الصفحات البيضاء بعد الدمج.');
-    }
-    throw new Error('تعذر قراءة عدد الصفحات. قد يكون الملف تالفًا أو مشفرًا.');
+    throw new Error('تعذر قراءة عدد الصفحات. قد يكون الملف تالفًا.');
   }
 }
 
@@ -49,7 +49,7 @@ export async function mergePDFs(
     
     try {
       const fileBuffer = await file.arrayBuffer();
-      const pdf = await PDFDocument.load(fileBuffer);
+      const pdf = await PDFDocument.load(fileBuffer, { ignoreEncryption: true });
       
       // Flatten forms to prevent interactive widgets with broken references.
       // This is the primary fix for merged pages showing as blank or white.

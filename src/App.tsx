@@ -228,6 +228,13 @@ export default function App() {
       return;
     }
 
+    if (files.some(f => f.isEncrypted)) {
+      setErrorMsg(isAr 
+        ? 'لا يمكن دمج الملفات المشفرة أو المحمية لتجنب ظهور صفحات بيضاء. يرجى إزالتها والمحاولة مرة أخرى.' 
+        : 'Cannot merge encrypted or protected files to prevent blank pages. Please remove them and try again.');
+      return;
+    }
+
     setMergeStatus('merging');
     setErrorMsg(null);
     setIsPreviewExpanded(false);
@@ -483,7 +490,7 @@ export default function App() {
                     {/* Submit Merge Button */}
                     <button
                       type="button"
-                      disabled={totalFilesCount < 2}
+                      disabled={totalFilesCount < 2 || files.some(f => f.isEncrypted)}
                       onClick={handleMergePDFFiles}
                       className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm text-white bg-[#2563eb] hover:bg-[#1d4ed8] active:scale-[0.98] shadow-md shadow-blue-100 disabled:bg-[#f1f5f9] disabled:text-[#94a3b8] disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
                       id="btn-trigger-merge"
@@ -575,16 +582,16 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Encryption Warning Banner */}
+                {/* Encryption Error Banner */}
                 {files.some(f => f.isEncrypted) && (
-                  <div className="p-4 bg-amber-50 border border-amber-100 text-amber-800 rounded-2xl flex gap-3 shadow-sm" id="encryption-warning-banner">
-                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="p-4 bg-rose-50 border border-rose-100 text-rose-900 rounded-2xl flex gap-3 shadow-sm animate-shake" id="encryption-warning-banner">
+                    <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-sm font-bold">{isAr ? 'تنبيه: ملفات مشفرة أو محمية' : 'Attention: Encrypted or Protected Files'}</h4>
-                      <p className="text-xs leading-relaxed mt-1 text-amber-700">
+                      <h4 className="text-sm font-bold">{isAr ? 'خطأ: غير مسموح بدمج الملفات المشفرة والمحمية' : 'Error: Encrypted or Protected Files Blocked'}</h4>
+                      <p className="text-xs leading-relaxed mt-1 text-rose-700">
                         {isAr 
-                          ? 'تم اكتشاف ملفات تحتوي على قيود حماية أو تشفير. الأداة ستتجاوز ذلك لدمجها، ولكن يرجى العلم أنها قد تظهر كصفحات بيضاء تمامًا في الملف المدمج النهائي بسبب حماية تشفير PDF المضمنة.' 
-                          : 'We detected files containing security or encryption restrictions. The tool will bypass this to merge them, but please note they may appear as blank pages in the final merged document due to internal PDF encryption.'}
+                          ? 'تم اكتشاف ملفات تحتوي على حماية أو تشفير. الأداة لا تدعم دمج هذه الملفات لمنع ظهور صفحات بيضاء فارغة تماماً في الملف المدمج النهائي. يرجى حذف الملفات المميزة بـ (مشفر) لتتمكن من المتابعة والدمج بنجاح.' 
+                          : 'Password-protected or encrypted files are not supported for merging because they are secured. Merging them will result in completely blank/white pages. Please remove the files marked as "Encrypted" to proceed with the merge successfully.'}
                       </p>
                     </div>
                   </div>

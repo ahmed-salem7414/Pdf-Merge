@@ -77,9 +77,9 @@ export function FileCard({
             {!pdfFile.loadingPageCount && !pdfFile.error && pdfFile.isEncrypted && (
               <>
                 <span className="text-slate-300">•</span>
-                <span className="flex items-center gap-1 text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
-                  <AlertCircle className="w-3 h-3 shrink-0" />
-                  {isAr ? 'مشفر/محمي' : 'Encrypted/Protected'}
+                <span className="flex items-center gap-1 text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {isAr ? 'مشفر (غير مدعوم)' : 'Encrypted (Unsupported)'}
                 </span>
               </>
             )}
